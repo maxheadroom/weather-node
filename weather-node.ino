@@ -40,7 +40,7 @@
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
 #define NETWORKID     100  // The same on all nodes that talk to each other
-#define NODEID        2    // The unique identifier of this node
+#define NODEID        3    // The unique identifier of this node
 #define RECEIVER      1    // The recipient of packets
 
 //Match frequency to the hardware version of the radio on your Feather
@@ -110,32 +110,6 @@
 float measuredvbat = 0;
 
 
-/* Some RTC settings */
-//////////////// Key Settings ///////////////////
-
-#define SampleIntSec 15 // RTC - Sample interval in seconds
-#define SamplesPerCycle 60  // Number of samples to buffer before uSD card flush is called
-
-const int SampleIntSeconds = 50;   //Simple Delay used for testing, ms i.e. 1000 = 1 sec
-
-/* Change these values to set the current initial time */
-const byte hours = 18;
-const byte minutes = 50;
-const byte seconds = 0;
-/* Change these values to set the current initial date */
-const byte day = 29;
-const byte month = 12;
-const byte year = 15;
-
-/////////////// Global Objects ////////////////////
-RTCZero rtc;    // Create RTC object
-int NextAlarmSec; // Variable to hold next alarm time in seconds
-
-
-
-
-int16_t packetnum = 0;  // packet counter, we increment per xmission
-
 RFM69 radio = RFM69(RFM69_CS, RFM69_IRQ, IS_RFM69HCW, RFM69_IRQN);
 Adafruit_Si7021 sensor = Adafruit_Si7021();
 
@@ -144,13 +118,6 @@ char buffer[100]; // holds message to send
 
 
 void setup() {
-
-  // Setup RTC
-  rtc.begin();    // Start the RTC in 24hr mode
-  rtc.setTime(hours, minutes, seconds);   // Set the time
-  rtc.setDate(day, month, year);    // Set the date
-
-  
   // while (!Serial); // wait until serial console is open, remove if not tethered to computer. Delete this line on ESP8266
   Serial.begin(SERIAL_BAUD);
 
@@ -223,19 +190,6 @@ void loop() {
   Serial.flush(); //make sure all serial data is clocked out before sleeping the MCU
 
 
-   ///////// Interval Timing and Sleep Code ////////////////
-  delay(SampleIntSeconds);   // Simple delay for testing only interval set by const in header
-
-  NextAlarmSec = (NextAlarmSec + SampleIntSec) % 60;   // i.e. 65 becomes 5
-  rtc.setAlarmSeconds(NextAlarmSec); // RTC time to wake, currently seconds only
-  rtc.enableAlarm(rtc.MATCH_SS); // Match seconds only
-  rtc.attachInterrupt(alarmMatch); // Attaches function to be called, currently blank
-  delay(50); // Brief delay prior to sleeping not really sure its required
-  
-  rtc.standbyMode();    // Sleep until next alarm match
-  
-  // Code re-starts here after sleep !
-  
 }
 
 void Blink(byte PIN, byte DELAY_MS, byte loops)
@@ -249,17 +203,3 @@ void Blink(byte PIN, byte DELAY_MS, byte loops)
   }
 }
 
-
-void alarmMatch() // Do something when interrupt called
-{
-  Serial.print(rtc.getHours());
-  Serial.print(":");
-  if(rtc.getMinutes() < 10)
-    Serial.print('0');      // Trick to add leading zero for formatting
-  Serial.print(rtc.getMinutes());
-  Serial.print(":");
-  if(rtc.getSeconds() < 10)
-    Serial.print('0');      // Trick to add leading zero for formatting
-  Serial.print(rtc.getSeconds());
-  Blink(LED, 50, 10);
-}
