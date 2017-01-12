@@ -60,6 +60,21 @@
 #define RFM69_IRQN    3  // Pin 3 is IRQ 3!
 #define RFM69_RST     4
 
+/* RTC settings */
+//////////////// Key Settings ///////////////////
+
+/* Change these values to set the current initial time */
+const byte hours = 0;
+const byte minutes = 0;
+const byte seconds = 0;
+/* Change these values to set the current initial date */
+const byte day = 1;
+const byte month = 1;
+const byte year = 0;
+
+/////////////// Global Objects ////////////////////
+RTCZero rtc;    // Create RTC object
+
 #define LED           13  // onboard blinky
 //#define LED           0 //use 0 on ESP8266
 
@@ -103,7 +118,15 @@ void setup() {
 
   // initialize Sensor
   sensor.begin();
-
+  Serial.flush();
+  
+  // initialize RTC and go to sleep
+  rtc.begin();    // Start the RTC in 24hr mode
+  rtc.setTime(hours, minutes, seconds);   // Set the time
+  rtc.setDate(day, month, year);    // Set the date
+    ///////// Interval Timing and Sleep Code ////////////////
+  rtc.setAlarmTime(0,0,10); // RTC time to wake, currently seconds only
+  rtc.attachInterrupt(alarmMatch); // Attaches function to be called, currently blank
   
   
 }
@@ -114,9 +137,10 @@ float hum; // reading of the humidity sensor
 
 
 void loop() {
-  Blink(LED, 100, 10);
-  radio.sleep();
-  delay(10000);  // Wait 1 second between transmits, could also 'sleep' here!
+  digitalWrite(LED,HIGH);
+  printTime();
+  printDate();
+  Blink(LED, 100, 3);
   radio.receiveDone(); //put radio in RX mode
   temp = radio.readTemperature();
   // hum = 
@@ -135,7 +159,7 @@ void loop() {
   // Serial.print("VBat: "); Serial.println(measuredvbat);
   sprintf(buffer, "{\"node\":%i,\"t\":%.2f,\"h\":%.2f,\"bat\":%.2f,\"rt\":%.2f}", NODEID, sensor.readTemperature(), sensor.readHumidity() , measuredvbat, temp);
 
-    sendLen = strlen(buffer);
+  sendLen = strlen(buffer);
   Serial.print("Sending "); Serial.print(sendLen); Serial.println(buffer);
   Serial.flush(); //make sure all serial data is clocked out before sleeping the MCU
  
@@ -144,9 +168,35 @@ void loop() {
     Blink(LED, 50, 3); //blink LED 3 times, 50ms between blinks
   }
 
-  
-  
+  // enable Alarm
+  rtc.enableAlarm(rtc.MATCH_SS); // Match seconds only
+  // put Radio to sleep
+  radio.sleep();
+  // put MCU to sleep
+  Serial.println("Good night!"); Serial.flush();
+  rtc.standbyMode();    // Sleep until next alarm match  
 
+}
+
+void alarmMatch() // Do something when interrupt called
+{
+  // Blink(LED,100,3);
+}
+
+void printTime() // Do something when interrupt called
+{
+  Serial.print(rtc.getHours()); Serial.print(":");
+  Serial.print(rtc.getMinutes()); Serial.print(":");
+  Serial.println(rtc.getSeconds());
+  Serial.flush();
+}
+
+void printDate() // Do something when interrupt called
+{
+  Serial.print(rtc.getDay()); Serial.print(".");
+  Serial.print(rtc.getMonth()); Serial.print(".");
+  Serial.println(rtc.getYear() + 2000);
+  Serial.flush();
 }
 
 void Blink(byte PIN, byte DELAY_MS, byte loops)
