@@ -40,7 +40,7 @@
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
 #define NETWORKID     100  // The same on all nodes that talk to each other
-#define NODEID        3    // The unique identifier of this node
+#define NODEID        2    // The unique identifier of this node
 #define RECEIVER      1    // The recipient of packets
 
 //Match frequency to the hardware version of the radio on your Feather
@@ -54,54 +54,11 @@
 //*********************************************************************************************
 #define SERIAL_BAUD   115200
 
-/* for Feather 32u4 Radio
-#define RFM69_CS      8
-#define RFM69_IRQ     7
-#define RFM69_IRQN    4  // Pin 7 is IRQ 4!
-#define RFM69_RST     4
-*/
-
 /* for Feather M0 Radio */
 #define RFM69_CS      8
 #define RFM69_IRQ     3
 #define RFM69_IRQN    3  // Pin 3 is IRQ 3!
 #define RFM69_RST     4
-
-
-/* ESP8266 feather w/wing
-#define RFM69_CS      2
-#define RFM69_IRQ     15
-#define RFM69_IRQN    digitalPinToInterrupt(RFM69_IRQ )
-#define RFM69_RST     16
-*/
-
-/* Feather 32u4 w/wing
-#define RFM69_RST     11   // "A"
-#define RFM69_CS      10   // "B"
-#define RFM69_IRQ     2    // "SDA" (only SDA/SCL/RX/TX have IRQ!)
-#define RFM69_IRQN    digitalPinToInterrupt(RFM69_IRQ )
-*/
-
-/* Feather m0 w/wing 
-#define RFM69_RST     11   // "A"
-#define RFM69_CS      10   // "B"
-#define RFM69_IRQ     6    // "D"
-#define RFM69_IRQN    digitalPinToInterrupt(RFM69_IRQ )
-*/
-
-/* Teensy 3.x w/wing 
-#define RFM69_RST     9   // "A"
-#define RFM69_CS      10   // "B"
-#define RFM69_IRQ     4    // "C"
-#define RFM69_IRQN    digitalPinToInterrupt(RFM69_IRQ )
-*/
-
-/* WICED Feather w/wing 
-#define RFM69_RST     PA4     // "A"
-#define RFM69_CS      PB4     // "B"
-#define RFM69_IRQ     PA15    // "C"
-#define RFM69_IRQN    RFM69_IRQ
-*/
 
 #define LED           13  // onboard blinky
 //#define LED           0 //use 0 on ESP8266
