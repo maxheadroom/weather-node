@@ -40,7 +40,7 @@
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
 #define NETWORKID     100  // The same on all nodes that talk to each other
-#define NODEID        3    // The unique identifier of this node
+#define NODEID        2    // The unique identifier of this node
 #define RECEIVER      1    // The recipient of packets
 
 //Match frequency to the hardware version of the radio on your Feather
@@ -137,7 +137,6 @@ float hum; // reading of the humidity sensor
 
 
 void loop() {
-  digitalWrite(LED,HIGH);
   printTime();
   printDate();
   Blink(LED, 100, 3);
@@ -168,6 +167,8 @@ void loop() {
     Blink(LED, 50, 3); //blink LED 3 times, 50ms between blinks
   }
 
+  // rtc.setTime(0,0,0);
+  rtc.setAlarmTime(0,0,10);
   // enable Alarm
   rtc.enableAlarm(rtc.MATCH_SS); // Match seconds only
   // put Radio to sleep
