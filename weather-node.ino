@@ -1,0 +1,265 @@
+/* RFM69 library and code by Felix Rusu - felix@lowpowerlab.com
+// Get libraries at: https://github.com/LowPowerLab/
+// Make sure you adjust the settings in the configuration section below !!!
+// **********************************************************************************
+// Copyright Felix Rusu, LowPowerLab.com
+// Library and code by Felix Rusu - felix@lowpowerlab.com
+// **********************************************************************************
+// License
+// **********************************************************************************
+// This program is free software; you can redistribute it 
+// and/or modify it under the terms of the GNU General    
+// Public License as published by the Free Software       
+// Foundation; either version 3 of the License, or        
+// (at your option) any later version.                    
+//                                                        
+// This program is distributed in the hope that it will   
+// be useful, but WITHOUT ANY WARRANTY; without even the  
+// implied warranty of MERCHANTABILITY or FITNESS FOR A   
+// PARTICULAR PURPOSE. See the GNU General Public        
+// License for more details.                              
+//                                                        
+// You should have received a copy of the GNU General    
+// Public License along with this program.
+// If not, see <http://www.gnu.org/licenses></http:>.
+//                                                        
+// Licence can be viewed at                               
+// http://www.gnu.org/licenses/gpl-3.0.txt
+//
+// Please maintain this license information along with authorship
+// and copyright notices in any redistribution of this code
+// **********************************************************************************/
+
+#include <RFM69.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
+#include <SPI.h>
+#include <math.h>
+#include "Adafruit_Si7021.h"
+#include <RTCZero.h> 
+
+//*********************************************************************************************
+// *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
+//*********************************************************************************************
+#define NETWORKID     100  // The same on all nodes that talk to each other
+#define NODEID        2    // The unique identifier of this node
+#define RECEIVER      1    // The recipient of packets
+
+//Match frequency to the hardware version of the radio on your Feather
+//#define FREQUENCY     RF69_433MHZ
+#define FREQUENCY     RF69_868MHZ
+// #define FREQUENCY     RF69_915MHZ
+#define ENCRYPT true
+#define ENCRYPTKEY    "ABCDEFGHIJKLMNOP" //exactly the same 16 characters/bytes on all nodes!
+#define IS_RFM69HCW   true // set to 'true' if you are using an RFM69HCW module
+
+//*********************************************************************************************
+#define SERIAL_BAUD   115200
+
+/* for Feather 32u4 Radio
+#define RFM69_CS      8
+#define RFM69_IRQ     7
+#define RFM69_IRQN    4  // Pin 7 is IRQ 4!
+#define RFM69_RST     4
+*/
+
+/* for Feather M0 Radio */
+#define RFM69_CS      8
+#define RFM69_IRQ     3
+#define RFM69_IRQN    3  // Pin 3 is IRQ 3!
+#define RFM69_RST     4
+
+
+/* ESP8266 feather w/wing
+#define RFM69_CS      2
+#define RFM69_IRQ     15
+#define RFM69_IRQN    digitalPinToInterrupt(RFM69_IRQ )
+#define RFM69_RST     16
+*/
+
+/* Feather 32u4 w/wing
+#define RFM69_RST     11   // "A"
+#define RFM69_CS      10   // "B"
+#define RFM69_IRQ     2    // "SDA" (only SDA/SCL/RX/TX have IRQ!)
+#define RFM69_IRQN    digitalPinToInterrupt(RFM69_IRQ )
+*/
+
+/* Feather m0 w/wing 
+#define RFM69_RST     11   // "A"
+#define RFM69_CS      10   // "B"
+#define RFM69_IRQ     6    // "D"
+#define RFM69_IRQN    digitalPinToInterrupt(RFM69_IRQ )
+*/
+
+/* Teensy 3.x w/wing 
+#define RFM69_RST     9   // "A"
+#define RFM69_CS      10   // "B"
+#define RFM69_IRQ     4    // "C"
+#define RFM69_IRQN    digitalPinToInterrupt(RFM69_IRQ )
+*/
+
+/* WICED Feather w/wing 
+#define RFM69_RST     PA4     // "A"
+#define RFM69_CS      PB4     // "B"
+#define RFM69_IRQ     PA15    // "C"
+#define RFM69_IRQN    RFM69_IRQ
+*/
+
+#define LED           13  // onboard blinky
+//#define LED           0 //use 0 on ESP8266
+
+#define VBATPIN A7
+float measuredvbat = 0;
+
+
+/* Some RTC settings */
+//////////////// Key Settings ///////////////////
+
+#define SampleIntSec 15 // RTC - Sample interval in seconds
+#define SamplesPerCycle 60  // Number of samples to buffer before uSD card flush is called
+
+const int SampleIntSeconds = 50;   //Simple Delay used for testing, ms i.e. 1000 = 1 sec
+
+/* Change these values to set the current initial time */
+const byte hours = 18;
+const byte minutes = 50;
+const byte seconds = 0;
+/* Change these values to set the current initial date */
+const byte day = 29;
+const byte month = 12;
+const byte year = 15;
+
+/////////////// Global Objects ////////////////////
+RTCZero rtc;    // Create RTC object
+int NextAlarmSec; // Variable to hold next alarm time in seconds
+
+
+
+
+int16_t packetnum = 0;  // packet counter, we increment per xmission
+
+RFM69 radio = RFM69(RFM69_CS, RFM69_IRQ, IS_RFM69HCW, RFM69_IRQN);
+Adafruit_Si7021 sensor = Adafruit_Si7021();
+
+
+char buffer[100]; // holds message to send
+
+
+void setup() {
+
+  // Setup RTC
+  rtc.begin();    // Start the RTC in 24hr mode
+  rtc.setTime(hours, minutes, seconds);   // Set the time
+  rtc.setDate(day, month, year);    // Set the date
+
+  
+  // while (!Serial); // wait until serial console is open, remove if not tethered to computer. Delete this line on ESP8266
+  Serial.begin(SERIAL_BAUD);
+
+  Serial.println("Feather RFM69HCW Transmitter");
+  
+  // Hard Reset the RFM module
+  pinMode(RFM69_RST, OUTPUT);
+  digitalWrite(RFM69_RST, HIGH);
+  delay(100);
+  digitalWrite(RFM69_RST, LOW);
+  delay(100);
+
+  // Initialize radio
+  radio.initialize(FREQUENCY,NODEID,NETWORKID);
+  if (IS_RFM69HCW) {
+    radio.setHighPower();    // Only for RFM69HCW & HW!
+  }
+  radio.setPowerLevel(31); // power output ranges from 0 (5dBm) to 31 (20dBm)
+  
+  radio.encrypt(ENCRYPTKEY);
+  
+  pinMode(LED, OUTPUT);
+  Serial.print("\nTransmitting at ");
+  Serial.print(FREQUENCY==RF69_433MHZ ? 433 : FREQUENCY==RF69_868MHZ ? 868 : 915);
+  Serial.println(" MHz");
+
+  // initialize Sensor
+  sensor.begin();
+
+  
+  
+}
+
+byte sendLen; // holds length of send buffer
+float temp; // reading of the temperature sensor
+float hum; // reading of the humidity sensor
+
+
+void loop() {
+  Blink(LED, 100, 10);
+  radio.sleep();
+  delay(10000);  // Wait 1 second between transmits, could also 'sleep' here!
+  radio.receiveDone(); //put radio in RX mode
+  temp = radio.readTemperature();
+  // hum = 
+
+  measuredvbat = analogRead(VBATPIN);
+  measuredvbat *= 2;    // we divided by 2, so multiply back
+  measuredvbat *= 3.3;  // Multiply by 3.3V, our reference voltage
+  measuredvbat /= 1024; // convert to voltage
+  // Serial.print("VBat: " ); Serial.println(measuredvbat);
+  
+  // String tStr = 
+  // String hStr = String(hum, 2);
+  // String bStr = String(measuredvbat, 2);
+  Serial.print("Radio Temp: "); Serial.println(String(temp,2));
+  // Serial.print("Hum: "); Serial.println(hStr);
+  // Serial.print("VBat: "); Serial.println(measuredvbat);
+  sprintf(buffer, "{\"node\":%i, \"temperature\":%.2f, \"humidity\":%.2f, \"battery\":%.2f, \"radio.temperature\":%.2f }", NODEID, sensor.readTemperature(), sensor.readHumidity() , measuredvbat, temp);
+
+    sendLen = strlen(buffer);
+  Serial.print("Sending "); Serial.print(sendLen); Serial.println(buffer);
+    
+  if (radio.sendWithRetry(RECEIVER, buffer, sendLen )) { //target node Id, message as string or byte array, message length
+    Serial.println("OK");
+    Blink(LED, 50, 3); //blink LED 3 times, 50ms between blinks
+  }
+
+  
+  Serial.flush(); //make sure all serial data is clocked out before sleeping the MCU
+
+
+   ///////// Interval Timing and Sleep Code ////////////////
+  delay(SampleIntSeconds);   // Simple delay for testing only interval set by const in header
+
+  NextAlarmSec = (NextAlarmSec + SampleIntSec) % 60;   // i.e. 65 becomes 5
+  rtc.setAlarmSeconds(NextAlarmSec); // RTC time to wake, currently seconds only
+  rtc.enableAlarm(rtc.MATCH_SS); // Match seconds only
+  rtc.attachInterrupt(alarmMatch); // Attaches function to be called, currently blank
+  delay(50); // Brief delay prior to sleeping not really sure its required
+  
+  rtc.standbyMode();    // Sleep until next alarm match
+  
+  // Code re-starts here after sleep !
+  
+}
+
+void Blink(byte PIN, byte DELAY_MS, byte loops)
+{
+  for (byte i=0; i<loops; i++)
+  {
+    digitalWrite(PIN,HIGH);
+    delay(DELAY_MS);
+    digitalWrite(PIN,LOW);
+    delay(DELAY_MS);
+  }
+}
+
+
+void alarmMatch() // Do something when interrupt called
+{
+  Serial.print(rtc.getHours());
+  Serial.print(":");
+  if(rtc.getMinutes() < 10)
+    Serial.print('0');      // Trick to add leading zero for formatting
+  Serial.print(rtc.getMinutes());
+  Serial.print(":");
+  if(rtc.getSeconds() < 10)
+    Serial.print('0');      // Trick to add leading zero for formatting
+  Serial.print(rtc.getSeconds());
+  Blink(LED, 50, 10);
+}
