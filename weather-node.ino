@@ -40,7 +40,7 @@
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
 #define NETWORKID     100  // The same on all nodes that talk to each other
-#define NODEID        2    // The unique identifier of this node
+#define NODEID        3    // The unique identifier of this node
 #define RECEIVER      1    // The recipient of packets
 
 //Match frequency to the hardware version of the radio on your Feather
@@ -133,19 +133,19 @@ void loop() {
   Serial.print("Radio Temp: "); Serial.println(String(temp,2));
   // Serial.print("Hum: "); Serial.println(hStr);
   // Serial.print("VBat: "); Serial.println(measuredvbat);
-  sprintf(buffer, "{\"node\":%i, \"temperature\":%.2f, \"humidity\":%.2f, \"battery\":%.2f, \"radio.temperature\":%.2f }", NODEID, sensor.readTemperature(), sensor.readHumidity() , measuredvbat, temp);
+  sprintf(buffer, "{\"node\":%i,\"t\":%.2f,\"h\":%.2f,\"bat\":%.2f,\"rt\":%.2f}", NODEID, sensor.readTemperature(), sensor.readHumidity() , measuredvbat, temp);
 
     sendLen = strlen(buffer);
   Serial.print("Sending "); Serial.print(sendLen); Serial.println(buffer);
-    
+  Serial.flush(); //make sure all serial data is clocked out before sleeping the MCU
+ 
   if (radio.sendWithRetry(RECEIVER, buffer, sendLen )) { //target node Id, message as string or byte array, message length
     Serial.println("OK");
     Blink(LED, 50, 3); //blink LED 3 times, 50ms between blinks
   }
 
   
-  Serial.flush(); //make sure all serial data is clocked out before sleeping the MCU
-
+  
 
 }
 
