@@ -35,6 +35,11 @@
 #include <math.h>
 #include "Adafruit_Si7021.h"
 #include <RTCZero.h> 
+#include "SparkFunISL29125.h"
+
+// Declare sensor object
+SFE_ISL29125 RGB_sensor;
+
 
 //*********************************************************************************************
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
@@ -79,14 +84,14 @@ RTCZero rtc;    // Create RTC object
 //#define LED           0 //use 0 on ESP8266
 
 #define VBATPIN A7
-float measuredvbat = 0;
+
 
 
 RFM69 radio = RFM69(RFM69_CS, RFM69_IRQ, IS_RFM69HCW, RFM69_IRQN);
 Adafruit_Si7021 sensor = Adafruit_Si7021();
 
 
-char buffer[100]; // holds message to send
+char buffer[60]; // holds message to send; max 61 bytes for RFM69
 
 
 void setup() {
@@ -116,6 +121,12 @@ void setup() {
   Serial.print(FREQUENCY==RF69_433MHZ ? 433 : FREQUENCY==RF69_868MHZ ? 868 : 915);
   Serial.println(" MHz");
 
+  // Initialize the ISL29125 with simple configuration so it starts sampling
+  if (RGB_sensor.init())
+  {
+    Serial.println("Sensor Initialization Successful\n\r");
+  }
+  
   // initialize Sensor
   sensor.begin();
   Serial.flush();
@@ -125,48 +136,65 @@ void setup() {
   rtc.setTime(hours, minutes, seconds);   // Set the time
   rtc.setDate(day, month, year);    // Set the date
     ///////// Interval Timing and Sleep Code ////////////////
-  rtc.setAlarmTime(0,0,10); // RTC time to wake, currently seconds only
-  rtc.attachInterrupt(alarmMatch); // Attaches function to be called, currently blank
+  // rtc.setAlarmTime(0,0,10); // RTC time to wake, currently seconds only
+  // rtc.attachInterrupt(alarmMatch); // Attaches function to be called, currently blank
   
   
 }
 
-byte sendLen; // holds length of send buffer
-float temp; // reading of the temperature sensor
-float hum; // reading of the humidity sensor
-
+float rtemp; // reading of the temperature sensor
+String red;
+String green;
+String blue;
+String rgb;
 
 void loop() {
   printTime();
   printDate();
-  Blink(LED, 100, 3);
+  Blink(LED, 1000, 1);
   radio.receiveDone(); //put radio in RX mode
-  temp = radio.readTemperature();
-  // hum = 
+  rtemp = radio.readTemperature();
+  rgb = "";
+  rgb += String(RGB_sensor.readGreen(), HEX);
+  rgb += String(RGB_sensor.readBlue(), HEX);
 
-  measuredvbat = analogRead(VBATPIN);
-  measuredvbat *= 2;    // we divided by 2, so multiply back
-  measuredvbat *= 3.3;  // Multiply by 3.3V, our reference voltage
-  measuredvbat /= 1024; // convert to voltage
-  // Serial.print("VBat: " ); Serial.println(measuredvbat);
   
-  // String tStr = 
-  // String hStr = String(hum, 2);
-  // String bStr = String(measuredvbat, 2);
-  Serial.print("Radio Temp: "); Serial.println(String(temp,2));
-  // Serial.print("Hum: "); Serial.println(hStr);
-  // Serial.print("VBat: "); Serial.println(measuredvbat);
-  sprintf(buffer, "{\"node\":%i,\"t\":%.2f,\"h\":%.2f,\"bat\":%.2f,\"rt\":%.2f}", NODEID, sensor.readTemperature(), sensor.readHumidity() , measuredvbat, temp);
 
-  sendLen = strlen(buffer);
-  Serial.print("Sending "); Serial.print(sendLen); Serial.println(buffer);
-  Serial.flush(); //make sure all serial data is clocked out before sleeping the MCU
- 
+
+  /* Full sensor reading string
+   *  
+   *  {node:2,t:21.23,h:23.45,rt:23.21,b:4.51,c:FFFFFF}
+   */
+  sprintf(buffer, "{node:%i,t:%.2f,h:%.2f,rt:%.2f,b:%.2f,c:%X%X%X}", NODEID, sensor.readTemperature(), sensor.readHumidity(), rtemp, readBattery() ,RGB_sensor.readRed(), RGB_sensor.readGreen(), RGB_sensor.readBlue() );
+  
+  sendMessage(buffer);
+  /*
+  Serial.print("Radio Temp: "); Serial.println(String(temp,2));
+  sprintf(buffer, "{\"node\":%i,\"temperature\":%.2f}", NODEID, sensor.readTemperature());
+  sendMessage(buffer);
+  sprintf(buffer, "{\"node\":%i,\"humidity\":%.2f}", NODEID, sensor.readHumidity());
+  sendMessage(buffer);
+  sprintf(buffer, "{\"node\":%i,\"battery\":%.2f}", NODEID, measuredvbat);
+  sendMessage(buffer);
+  sprintf(buffer, "{\"node\":%i,\"radio_temperature\":%.2f}", NODEID, rtemp);
+  sendMessage(buffer);
+  sprintf(buffer, "{\"node\":%i,\"light_red\":%i}", NODEID, red);
+  sendMessage(buffer);
+  sprintf(buffer, "{\"node\":%i,\"light_green\":%i}", NODEID, green);
+  sendMessage(buffer);
+  sprintf(buffer, "{\"node\":%i,\"light_blue\":%i}", NODEID, blue);
+  sendMessage(buffer);
+  */
+  
+ /* 
   if (radio.sendWithRetry(RECEIVER, buffer, sendLen )) { //target node Id, message as string or byte array, message length
     Serial.println("OK");
     Blink(LED, 50, 3); //blink LED 3 times, 50ms between blinks
   }
+*/
 
+
+  /* 
   // rtc.setTime(0,0,0);
   rtc.setAlarmTime(0,0,10);
   // enable Alarm
@@ -176,12 +204,53 @@ void loop() {
   // put MCU to sleep
   Serial.println("Good night!"); Serial.flush();
   rtc.standbyMode();    // Sleep until next alarm match  
+  */
+  printRGB();
+  delay(10000);
+}
 
+
+float readBattery() {
+  
+  float measuredvbat = 0;
+  measuredvbat = analogRead(VBATPIN);
+  measuredvbat *= 2;    // we divided by 2, so multiply back
+  measuredvbat *= 3.3;  // Multiply by 3.3V, our reference voltage
+  measuredvbat /= 1024; // convert to voltage
+
+  return measuredvbat;
+}
+
+boolean sendMessage(char message[]) {
+  
+  byte sendLen =  strlen(message);
+  Serial.print("Sending "); Serial.print(sendLen); Serial.println(message);
+  Serial.flush(); //make sure all serial data is clocked out before sleeping the MCU
+  if (radio.sendWithRetry(RECEIVER, message, sendLen )) { //target node Id, message as string or byte array, message length
+    Serial.println("OK");
+    Blink(LED, 50, 2); //blink LED 3 times, 50ms between blinks
+  }
+
+  
 }
 
 void alarmMatch() // Do something when interrupt called
 {
   // Blink(LED,100,3);
+}
+
+void printRGB() {
+// Read sensor values (16 bit integers)
+  unsigned int red = RGB_sensor.readRed();
+  unsigned int green = RGB_sensor.readGreen();
+  unsigned int blue = RGB_sensor.readBlue();
+  
+  // Print out readings, change HEX to DEC if you prefer decimal output
+  Serial.print("Red: "); Serial.println(red,HEX);
+  Serial.print("Green: "); Serial.println(green,HEX);
+  Serial.print("Blue: "); Serial.println(blue,HEX);
+  Serial.println();Serial.flush();
+  
 }
 
 void printTime() // Do something when interrupt called
