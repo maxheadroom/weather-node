@@ -139,7 +139,7 @@ float hum; // reading of the humidity sensor
 void loop() {
   printTime();
   printDate();
-  Blink(LED, 100, 3);
+  Blink(LED, 1000, 1);
   radio.receiveDone(); //put radio in RX mode
   temp = radio.readTemperature();
   // hum = 
