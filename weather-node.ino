@@ -125,7 +125,8 @@ void setup() {
   if (RGB_sensor.init())
   {
     Serial.println("Sensor Initialization Successful\n\r");
-    RGB_sensor.config(0x15, CFG2_IR_OFFSET_OFF, CFG3_NO_INT);
+    // RGB_sensor.config(0x05, CFG2_IR_OFFSET_OFF, CFG3_NO_INT);
+    RGB_sensor.config(0xD, CFG2_IR_OFFSET_OFF, CFG3_NO_INT);
   }
   
   // initialize Sensor
@@ -173,7 +174,6 @@ void loop() {
   
 
 
-  
   // rtc.setTime(0,0,0);
   rtc.setAlarmTime(0,0,10);
   // enable Alarm
