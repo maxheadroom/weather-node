@@ -125,6 +125,7 @@ void setup() {
   if (RGB_sensor.init())
   {
     Serial.println("Sensor Initialization Successful\n\r");
+    RGB_sensor.config(0x15, CFG2_IR_OFFSET_OFF, CFG3_NO_INT);
   }
   
   // initialize Sensor
@@ -142,11 +143,9 @@ void setup() {
   
 }
 
-float rtemp; // reading of the temperature sensor
-String red;
-String green;
-String blue;
-String rgb;
+float temp, hum, rtemp; // reading of the temperature sensor
+
+
 
 void loop() {
   printTime();
@@ -154,47 +153,27 @@ void loop() {
   Blink(LED, 1000, 1);
   radio.receiveDone(); //put radio in RX mode
   rtemp = radio.readTemperature();
-  rgb = "";
-  rgb += String(RGB_sensor.readGreen(), HEX);
-  rgb += String(RGB_sensor.readBlue(), HEX);
+  temp = sensor.readTemperature();
+  hum = sensor.readHumidity();
 
-  
-
-
+  Serial.print("Temp: "); Serial.println(temp);
   /* Full sensor reading string
    *  
    *  {node:2,t:21.23,h:23.45,rt:23.21,b:4.51,c:FFFFFF}
+   *  {"node":2,"t":17.48,"h":30.40,"bat":4.23,"rt":16.00}
+   *  
    */
-  sprintf(buffer, "{node:%i,t:%.2f,h:%.2f,rt:%.2f,b:%.2f,c:%X%X%X}", NODEID, sensor.readTemperature(), sensor.readHumidity(), rtemp, readBattery() ,RGB_sensor.readRed(), RGB_sensor.readGreen(), RGB_sensor.readBlue() );
+
+   char tmp_buffer[6];
+   String(sensor.readTemperature(), 2).toCharArray(tmp_buffer, 6);
+  sprintf(buffer, "{\"node\":%i,\"temp\":%s,\"hum\":%.2f,\"rt\":%.2f, test:%i}", NODEID, tmp_buffer , sensor.readHumidity(), rtemp, RGB_sensor.readRed());
+  sendMessage(buffer);
+  sprintf(buffer, "{\"node\":%i,\"bat\":%.2f,\"red\":%i,\"green\":%i,\"blue\":%i}", NODEID, readBattery(), RGB_sensor.readRed(), RGB_sensor.readGreen(), RGB_sensor.readBlue());
+  sendMessage(buffer);
   
-  sendMessage(buffer);
-  /*
-  Serial.print("Radio Temp: "); Serial.println(String(temp,2));
-  sprintf(buffer, "{\"node\":%i,\"temperature\":%.2f}", NODEID, sensor.readTemperature());
-  sendMessage(buffer);
-  sprintf(buffer, "{\"node\":%i,\"humidity\":%.2f}", NODEID, sensor.readHumidity());
-  sendMessage(buffer);
-  sprintf(buffer, "{\"node\":%i,\"battery\":%.2f}", NODEID, measuredvbat);
-  sendMessage(buffer);
-  sprintf(buffer, "{\"node\":%i,\"radio_temperature\":%.2f}", NODEID, rtemp);
-  sendMessage(buffer);
-  sprintf(buffer, "{\"node\":%i,\"light_red\":%i}", NODEID, red);
-  sendMessage(buffer);
-  sprintf(buffer, "{\"node\":%i,\"light_green\":%i}", NODEID, green);
-  sendMessage(buffer);
-  sprintf(buffer, "{\"node\":%i,\"light_blue\":%i}", NODEID, blue);
-  sendMessage(buffer);
-  */
-  
- /* 
-  if (radio.sendWithRetry(RECEIVER, buffer, sendLen )) { //target node Id, message as string or byte array, message length
-    Serial.println("OK");
-    Blink(LED, 50, 3); //blink LED 3 times, 50ms between blinks
-  }
-*/
 
 
-  /* 
+  
   // rtc.setTime(0,0,0);
   rtc.setAlarmTime(0,0,10);
   // enable Alarm
@@ -204,8 +183,7 @@ void loop() {
   // put MCU to sleep
   Serial.println("Good night!"); Serial.flush();
   rtc.standbyMode();    // Sleep until next alarm match  
-  */
-  printRGB();
+  
   delay(10000);
 }
 
@@ -221,7 +199,7 @@ float readBattery() {
   return measuredvbat;
 }
 
-boolean sendMessage(char message[]) {
+void sendMessage(char message[]) {
   
   byte sendLen =  strlen(message);
   Serial.print("Sending "); Serial.print(sendLen); Serial.println(message);
@@ -241,14 +219,12 @@ void alarmMatch() // Do something when interrupt called
 
 void printRGB() {
 // Read sensor values (16 bit integers)
-  unsigned int red = RGB_sensor.readRed();
-  unsigned int green = RGB_sensor.readGreen();
-  unsigned int blue = RGB_sensor.readBlue();
+
   
   // Print out readings, change HEX to DEC if you prefer decimal output
-  Serial.print("Red: "); Serial.println(red,HEX);
-  Serial.print("Green: "); Serial.println(green,HEX);
-  Serial.print("Blue: "); Serial.println(blue,HEX);
+  Serial.print("Red: "); Serial.println(RGB_sensor.readRed(),HEX);
+  Serial.print("Green: "); Serial.println(RGB_sensor.readGreen(),HEX);
+  Serial.print("Blue: "); Serial.println(RGB_sensor.readBlue(),HEX);
   Serial.println();Serial.flush();
   
 }
@@ -279,4 +255,5 @@ void Blink(byte PIN, byte DELAY_MS, byte loops)
     delay(DELAY_MS);
   }
 }
+
 
