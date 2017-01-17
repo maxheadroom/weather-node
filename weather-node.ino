@@ -166,7 +166,7 @@ void loop() {
 
    char tmp_buffer[6];
    String(sensor.readTemperature(), 2).toCharArray(tmp_buffer, 6);
-  sprintf(buffer, "{\"node\":%i,\"temp\":%s,\"hum\":%.2f,\"rt\":%.2f, test:%i}", NODEID, tmp_buffer , sensor.readHumidity(), rtemp, RGB_sensor.readRed());
+  sprintf(buffer, "{\"node\":%i,\"temp\":%s,\"hum\":%.2f,\"rt\":%.2f}", NODEID, tmp_buffer , sensor.readHumidity(), rtemp);
   sendMessage(buffer);
   sprintf(buffer, "{\"node\":%i,\"bat\":%.2f,\"red\":%i,\"green\":%i,\"blue\":%i}", NODEID, readBattery(), RGB_sensor.readRed(), RGB_sensor.readGreen(), RGB_sensor.readBlue());
   sendMessage(buffer);
