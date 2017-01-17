@@ -40,7 +40,7 @@
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
 #define NETWORKID     100  // The same on all nodes that talk to each other
-#define NODEID        2    // The unique identifier of this node
+#define NODEID        3    // The unique identifier of this node
 #define RECEIVER      1    // The recipient of packets
 
 //Match frequency to the hardware version of the radio on your Feather
@@ -115,14 +115,6 @@ void setup() {
   Serial.print("\nTransmitting at ");
   Serial.print(FREQUENCY==RF69_433MHZ ? 433 : FREQUENCY==RF69_868MHZ ? 868 : 915);
   Serial.println(" MHz");
-
-  // Initialize the ISL29125 with simple configuration so it starts sampling
-  if (RGB_sensor.init())
-  {
-    Serial.println("Sensor Initialization Successful\n\r");
-    // RGB_sensor.config(0x05, CFG2_IR_OFFSET_OFF, CFG3_NO_INT);
-    RGB_sensor.config(0xD, CFG2_IR_OFFSET_OFF, CFG3_NO_INT);
-  }
   
   // initialize Sensor
   sensor.begin();
@@ -149,8 +141,6 @@ void loop() {
   Blink(LED, 1000, 1);
   radio.receiveDone(); //put radio in RX mode
   rtemp = radio.readTemperature();
-  temp = sensor.readTemperature();
-  hum = sensor.readHumidity();
 
   Serial.print("Temp: "); Serial.println(temp);
   /* Full sensor reading string
@@ -164,7 +154,8 @@ void loop() {
    String(sensor.readTemperature(), 2).toCharArray(tmp_buffer, 6);
   sprintf(buffer, "{\"node\":%i,\"temp\":%s,\"hum\":%.2f,\"rt\":%.2f}", NODEID, tmp_buffer , sensor.readHumidity(), rtemp);
   sendMessage(buffer);
-  sprintf(buffer, "{\"node\":%i,\"bat\":%.2f,\"red\":%i,\"green\":%i,\"blue\":%i}", NODEID, readBattery(), RGB_sensor.readRed(), RGB_sensor.readGreen(), RGB_sensor.readBlue());
+  delay(1000);
+  sprintf(buffer, "{\"node\":%i,\"bat\":%.2f}", NODEID, readBattery());
   sendMessage(buffer);
   
 
@@ -211,17 +202,6 @@ void alarmMatch() // Do something when interrupt called
   // Blink(LED,100,3);
 }
 
-void printRGB() {
-// Read sensor values (16 bit integers)
-
-  
-  // Print out readings, change HEX to DEC if you prefer decimal output
-  Serial.print("Red: "); Serial.println(RGB_sensor.readRed(),HEX);
-  Serial.print("Green: "); Serial.println(RGB_sensor.readGreen(),HEX);
-  Serial.print("Blue: "); Serial.println(RGB_sensor.readBlue(),HEX);
-  Serial.println();Serial.flush();
-  
-}
 
 void printTime() // Do something when interrupt called
 {
