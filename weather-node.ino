@@ -144,7 +144,7 @@ void setup() {
   
 }
 
-float temp, hum, rtemp; // reading of the temperature sensor
+float rtemp; // reading of the temperature sensor
 
 
 
@@ -154,21 +154,13 @@ void loop() {
   Blink(LED, 1000, 1);
   radio.receiveDone(); //put radio in RX mode
   rtemp = radio.readTemperature();
-  temp = sensor.readTemperature();
-  hum = sensor.readHumidity();
 
-  Serial.print("Temp: "); Serial.println(temp);
-  /* Full sensor reading string
-   *  
-   *  {node:2,t:21.23,h:23.45,rt:23.21,b:4.51,c:FFFFFF}
-   *  {"node":2,"t":17.48,"h":30.40,"bat":4.23,"rt":16.00}
-   *  
-   */
 
    char tmp_buffer[6];
    String(sensor.readTemperature(), 2).toCharArray(tmp_buffer, 6);
   sprintf(buffer, "{\"node\":%i,\"temp\":%s,\"hum\":%.2f,\"rt\":%.2f}", NODEID, tmp_buffer , sensor.readHumidity(), rtemp);
   sendMessage(buffer);
+  delay(1000);
   sprintf(buffer, "{\"node\":%i,\"bat\":%.2f,\"red\":%i,\"green\":%i,\"blue\":%i}", NODEID, readBattery(), RGB_sensor.readRed(), RGB_sensor.readGreen(), RGB_sensor.readBlue());
   sendMessage(buffer);
   
